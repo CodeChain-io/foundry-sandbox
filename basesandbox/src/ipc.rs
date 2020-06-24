@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod intra;
+pub mod multiplex;
 pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
