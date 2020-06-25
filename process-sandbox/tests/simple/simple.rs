@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-extern crate codechain_basesandbox as cbsb;
-use cbsb::execution::executee;
-use cbsb::ipc::{IpcRecv, IpcSend};
+extern crate foundry_process_sandbox as fproc_sndbx;
+
+use fproc_sndbx::execution::executee;
+use fproc_sndbx::ipc::{IpcRecv, IpcSend};
 use std::time::Duration;
 
-type IpcScheme = cbsb::ipc::unix_socket::DomainSocket;
+type IpcScheme = fproc_sndbx::ipc::unix_socket::DomainSocket;
 
 #[cfg(all(unix, target_arch = "x86_64"))]
 fn main() -> Result<(), String> {
