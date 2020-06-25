@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-extern crate codechain_basesandbox as cbsb;
+extern crate foundry_process_sandbox as fproc_sndbx;
 
-use cbsb::execution::executee;
-use cbsb::execution::executor;
-use cbsb::ipc::intra::Intra;
-use cbsb::ipc::multiplex::{Forward, Multiplexer};
-use cbsb::ipc::Ipc;
-use cbsb::ipc::{IpcRecv, IpcSend, Terminate};
+use fproc_sndbx::execution::executee;
+use fproc_sndbx::execution::executor;
+use fproc_sndbx::ipc::intra::Intra;
+use fproc_sndbx::ipc::multiplex::{Forward, Multiplexer};
+use fproc_sndbx::ipc::Ipc;
+use fproc_sndbx::ipc::{IpcRecv, IpcSend, Terminate};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
-type IpcScheme = cbsb::ipc::unix_socket::DomainSocket;
+type IpcScheme = fproc_sndbx::ipc::unix_socket::DomainSocket;
 
 // CI server is really slow for this. Usually 10 is ok.
 const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(10000);
@@ -55,21 +55,21 @@ fn execute_simple_rust() {
 fn execute_simple_intra() {
     // Note that cargo unit tests might share global static variable.
     // You must use unique name per execution
-    let name = cbsb::ipc::generate_random_name();
+    let name = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name.clone(), Arc::new(simple_thread::<Intra>));
     simple_executor::<Intra, executor::PlainThread>(&name);
 }
 
 #[test]
 fn execute_simple_intra_socket() {
-    let name = cbsb::ipc::generate_random_name();
+    let name = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name.clone(), Arc::new(simple_thread::<IpcScheme>));
     simple_executor::<IpcScheme, executor::PlainThread>(&name);
 }
 
 #[test]
 fn execute_simple_multiple() {
-    let name_source = cbsb::ipc::generate_random_name();
+    let name_source = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name_source.clone(), Arc::new(simple_thread::<Intra>));
 
     let t1 = thread::spawn(|| simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs"));
@@ -93,7 +93,7 @@ fn execute_simple_multiple() {
 
 #[test]
 fn execute_simple_intra_complicated() {
-    let name = cbsb::ipc::generate_random_name();
+    let name = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name.clone(), Arc::new(simple_thread::<Intra>));
     let ctx1 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
     let ctx2 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
@@ -112,7 +112,7 @@ fn execute_simple_intra_complicated() {
 
 #[test]
 fn execute_simple_intra_massive() {
-    let name = cbsb::ipc::generate_random_name();
+    let name = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name.clone(), Arc::new(simple_thread::<Intra>));
 
     let mut threads = Vec::new();
@@ -161,7 +161,7 @@ fn terminator_socket() {
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), cbsb::ipc::RecvError::Termination)
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
     });
     d2.send(&[1, 2, 3]);
     barrier.wait();
@@ -178,7 +178,7 @@ fn terminator_intra() {
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), cbsb::ipc::RecvError::Termination)
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
     });
     d2.send(&[1, 2, 3]);
     barrier.wait();
@@ -200,7 +200,7 @@ fn socket_huge() {
             assert!(r.iter().all(|&x| x == (i % 256) as u8));
         }
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), cbsb::ipc::RecvError::Termination);
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination);
     });
     for i in 0..n {
         let data = vec![(i % 256) as u8; packet_size];
