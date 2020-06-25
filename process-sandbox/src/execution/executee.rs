@@ -18,8 +18,7 @@ use crate::ipc::*;
 
 // Interface for the sandboxee written in Rust
 pub struct Context<T: Ipc> {
-    /// ipc will be given with Some, but module may take it
-    /// However, the ipc must be return back here before the module terminates
+    /// You can take the ipc if you want.
     pub ipc: Option<T>,
 }
 
@@ -34,7 +33,8 @@ pub fn start<T: Ipc>(mut args: Vec<String>) -> Context<T> {
 impl<T: Ipc> Context<T> {
     /// Tell the executor that I will exit asap after this byebye handshake.
     pub fn terminate(self) {
-        let ipc = self.ipc.unwrap();
-        assert_eq!(ipc.recv(Some(std::time::Duration::from_millis(500))).unwrap(), b"#TERMINATE\0");
+        if let Some(ipc) = self.ipc {
+            assert_eq!(ipc.recv(Some(std::time::Duration::from_millis(500))).unwrap(), b"#TERMINATE\0");
+        }
     }
 }
