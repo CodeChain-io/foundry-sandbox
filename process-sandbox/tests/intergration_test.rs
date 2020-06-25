@@ -40,8 +40,8 @@ fn simple_thread<I: Ipc + 'static>(args: Vec<String>) {
 
 fn simple_executor<I: Ipc + 'static, E: executor::Executor>(path: &str) {
     let ctx = executor::execute::<I, E>(path).unwrap();
-    ctx.ipc.send(b"Hello?\0");
-    let r = ctx.ipc.recv(Some(TIMEOUT)).unwrap();
+    ctx.ipc.as_ref().unwrap().send(b"Hello?\0");
+    let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
     ctx.terminate();
 }
@@ -98,12 +98,12 @@ fn execute_simple_intra_complicated() {
     let ctx1 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
     let ctx2 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
 
-    ctx2.ipc.send(b"Hello?\0");
-    ctx1.ipc.send(b"Hello?\0");
+    ctx2.ipc.as_ref().unwrap().send(b"Hello?\0");
+    ctx1.ipc.as_ref().unwrap().send(b"Hello?\0");
 
-    let r = ctx1.ipc.recv(Some(TIMEOUT)).unwrap();
+    let r = ctx1.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
-    let r = ctx2.ipc.recv(Some(TIMEOUT)).unwrap();
+    let r = ctx2.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
 
     ctx1.terminate();
@@ -125,11 +125,11 @@ fn execute_simple_intra_massive() {
             }
 
             for ctx in &ctxs {
-                ctx.ipc.send(b"Hello?\0");
+                ctx.ipc.as_ref().unwrap().send(b"Hello?\0");
             }
 
             for ctx in &ctxs {
-                let r = ctx.ipc.recv(Some(TIMEOUT)).unwrap();
+                let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
                 assert_eq!(r, b"I'm here!\0");
             }
 
