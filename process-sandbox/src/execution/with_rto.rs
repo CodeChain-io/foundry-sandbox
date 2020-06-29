@@ -17,14 +17,13 @@
 use super::executee::Context as ExecuteeContext;
 use super::executor::{Context as ExecutorContext, Executor};
 use crate::ipc::*;
-use remote_trait_object::{Context as RtoContext, ExportService, HandleToExchange, Service};
-use std::sync::Arc;
+use remote_trait_object::{Context as RtoContext, ExportServiceBox, HandleToExchange, Service};
 
 const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1000);
 
-pub fn setup_executor<I: Ipc + 'static, E: Executor, T: ?Sized + Service + ExportService<T>>(
+pub fn setup_executor<I: Ipc + 'static, E: Executor, T: ?Sized + Service + ExportServiceBox<T>>(
     mut executor: ExecutorContext<I, E>,
-    initial_service: Arc<T>,
+    initial_service: Box<T>,
 ) -> Result<(ExecutorContext<I, E>, RtoContext, HandleToExchange), RecvError> {
     let (ipc_sub_arg1, ipc_sub_arg2) = I::arguments_for_both_ends();
     executor.ipc.as_ref().unwrap().send(&ipc_sub_arg2);
@@ -32,7 +31,7 @@ pub fn setup_executor<I: Ipc + 'static, E: Executor, T: ?Sized + Service + Expor
 
     let (ipc_send, ipc_recv) = executor.ipc.take().unwrap().split();
     let rto_context = RtoContext::new(ipc_send, ipc_recv);
-    let handle_export = <T as ExportService<T>>::export(rto_context.get_port(), initial_service);
+    let handle_export = <T as ExportServiceBox<T>>::export(rto_context.get_port(), initial_service);
 
     ipc_sub.send(&serde_cbor::to_vec(&handle_export).unwrap());
     let handle_import = serde_cbor::from_slice(&ipc_sub.recv(Some(TIMEOUT))?).unwrap();
@@ -40,15 +39,15 @@ pub fn setup_executor<I: Ipc + 'static, E: Executor, T: ?Sized + Service + Expor
     Ok((executor, rto_context, handle_import))
 }
 
-pub fn setup_executee<I: Ipc + 'static, T: ?Sized + Service + ExportService<T>>(
+pub fn setup_executee<I: Ipc + 'static, T: ?Sized + Service + ExportServiceBox<T>>(
     mut executee: ExecuteeContext<I>,
-    initial_service: Arc<T>,
+    initial_service: Box<T>,
 ) -> Result<(RtoContext, HandleToExchange), RecvError> {
     let ipc_sub = I::new(executee.ipc.as_ref().unwrap().recv(Some(TIMEOUT))?);
 
     let (ipc_send, ipc_recv) = executee.ipc.take().unwrap().split();
     let rto_context = RtoContext::new(ipc_send, ipc_recv);
-    let handle_export = <T as ExportService<T>>::export(rto_context.get_port(), initial_service);
+    let handle_export = <T as ExportServiceBox<T>>::export(rto_context.get_port(), initial_service);
 
     ipc_sub.send(&serde_cbor::to_vec(&handle_export).unwrap());
     let handle_import = serde_cbor::from_slice(&ipc_sub.recv(Some(TIMEOUT))?).unwrap();
@@ -61,7 +60,8 @@ mod tests {
     use super::*;
     use crate::execution::{executee, executor};
     use crate::ipc::intra::Intra;
-    use remote_trait_object::import_service;
+    use remote_trait_object::import_service_box;
+    use std::sync::Arc;
 
     fn wait_for_synchronization() {
         std::thread::sleep(std::time::Duration::from_millis(100))
@@ -84,9 +84,9 @@ mod tests {
 
     fn simple_executee(args: Vec<String>) {
         let ctx = executee::start::<Intra>(args);
-        let ping = Arc::new(SimplePing) as Arc<dyn Ping>;
+        let ping = Box::new(SimplePing) as Box<dyn Ping>;
         let (rto_context, handle) = setup_executee(ctx, ping).unwrap();
-        let ping_imported = import_service!(Ping, rto_context, handle);
+        let ping_imported = import_service_box::<dyn Ping>(&rto_context, handle);
         assert_eq!(ping_imported.ping(), "pong");
         drop(ping_imported);
         wait_for_synchronization();
@@ -97,9 +97,9 @@ mod tests {
         let name = crate::ipc::generate_random_name();
         executor::add_function_pool(name.clone(), Arc::new(simple_executee));
         let ctx = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
-        let ping = Arc::new(SimplePing) as Arc<dyn Ping>;
+        let ping = Box::new(SimplePing) as Box<dyn Ping>;
         let (_ctx, rto_context, handle) = setup_executor(ctx, ping).unwrap();
-        let ping_imported = import_service!(Ping, rto_context, handle);
+        let ping_imported = import_service_box::<dyn Ping>(&rto_context, handle);
         assert_eq!(ping_imported.ping(), "pong");
         drop(ping_imported);
         wait_for_synchronization();
