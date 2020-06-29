@@ -135,7 +135,7 @@ impl<T: Ipc, E: Executor> Context<T, E> {
     /// Call this when you're sure that the excutee is ready to teminate; i.e.
     /// it will call excutee::terminate() asap.
     pub fn terminate(self) {
-        if let Some(ipc) = self.ipc {
+        if let Some(ipc) = self.ipc.as_ref() {
             ipc.send(b"#TERMINATE\0");
         }
     }
