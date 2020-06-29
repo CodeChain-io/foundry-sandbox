@@ -88,6 +88,7 @@ mod tests {
         let (rto_context, handle) = setup_executee(ctx, ping).unwrap();
         let ping_imported = import_service!(Ping, rto_context, handle);
         assert_eq!(ping_imported.ping(), "pong");
+        drop(ping_imported);
         wait_for_synchronization();
     }
 
@@ -100,6 +101,7 @@ mod tests {
         let (_ctx, rto_context, handle) = setup_executor(ctx, ping).unwrap();
         let ping_imported = import_service!(Ping, rto_context, handle);
         assert_eq!(ping_imported.ping(), "pong");
+        drop(ping_imported);
         wait_for_synchronization();
     }
 }
