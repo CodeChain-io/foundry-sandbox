@@ -21,7 +21,7 @@ use fproc_sndbx::execution::executor;
 use fproc_sndbx::ipc::intra::Intra;
 use fproc_sndbx::ipc::multiplex::{Forward, Multiplexer};
 use fproc_sndbx::ipc::Ipc;
-use fproc_sndbx::ipc::{IpcRecv, IpcSend, Terminate};
+use fproc_sndbx::ipc::{TransportRecv, TransportSend};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
@@ -268,14 +268,14 @@ fn bidirection() {
     let (s1, r1) = d1.split();
     let (s2, r2) = d2.split();
 
-    fn fun_recv(n: usize, recv: impl IpcRecv) {
+    fn fun_recv(n: usize, recv: impl TransportRecv) {
         for i in 0..n {
             let r = recv.recv(None).unwrap();
             assert!(r.iter().all(|&x| x == (i % 256) as u8));
         }
     }
 
-    fn fun_send(n: usize, send: impl IpcSend) {
+    fn fun_send(n: usize, send: impl TransportSend) {
         for i in 0..n {
             let data = vec![(i % 256) as u8; 300000];
             send.send(&data);

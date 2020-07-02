@@ -259,7 +259,7 @@ pub struct DomainSocketSend {
     _socket: Arc<SocketInternal>,
 }
 
-impl IpcSend for DomainSocketSend {
+impl TransportSend for DomainSocketSend {
     fn send(&self, data: &[u8]) {
         self.queue.send(data.to_vec()).unwrap();
     }
@@ -270,9 +270,7 @@ pub struct DomainSocketRecv {
     socket: Arc<SocketInternal>,
 }
 
-impl IpcRecv for DomainSocketRecv {
-    type Terminator = Terminator;
-
+impl TransportRecv for DomainSocketRecv {
     /// Note that DomainSocketRecv is !Sync, so this is guaranteed to be mutual exclusive.
     fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
         let x = if let Some(t) = timeout {
@@ -286,10 +284,10 @@ impl IpcRecv for DomainSocketRecv {
         Ok(x)
     }
 
-    fn create_terminator(&self) -> Self::Terminator {
-        Terminator {
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        Box::new(Terminator {
             socket: Arc::clone(&self.socket),
-        }
+        })
     }
 }
 
@@ -311,20 +309,18 @@ pub struct DomainSocket {
     recv: DomainSocketRecv,
 }
 
-impl IpcSend for DomainSocket {
+impl TransportSend for DomainSocket {
     fn send(&self, data: &[u8]) {
         self.send.send(data)
     }
 }
 
-impl IpcRecv for DomainSocket {
-    type Terminator = Terminator;
-
+impl TransportRecv for DomainSocket {
     fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
         self.recv.recv(timeout)
     }
 
-    fn create_terminator(&self) -> Self::Terminator {
+    fn create_terminator(&self) -> Box<dyn Terminate> {
         self.recv.create_terminator()
     }
 }
