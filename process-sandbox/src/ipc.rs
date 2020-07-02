@@ -20,9 +20,9 @@ pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-pub use remote_trait_object::ipc::{IpcRecv, IpcSend, RecvError, Terminate};
+pub use remote_trait_object::transport::{RecvError, Terminate, TransportRecv, TransportSend};
 
-pub trait Ipc: Sized + IpcSend + IpcRecv {
+pub trait Ipc: Sized + TransportSend + TransportRecv {
     /// Generate two configurations
     /// which will be feeded to Ipc::new(),
     /// for both two ends in two different processes, to initialize each IPC end.
@@ -30,8 +30,8 @@ pub trait Ipc: Sized + IpcSend + IpcRecv {
     /// both run at the same time.
     fn arguments_for_both_ends() -> (Vec<u8>, Vec<u8>);
 
-    type SendHalf: IpcSend;
-    type RecvHalf: IpcRecv;
+    type SendHalf: TransportSend;
+    type RecvHalf: TransportRecv;
 
     /// Constructs itself with an opaque data that would have been transported by some IPC
     fn new(data: Vec<u8>) -> Self;

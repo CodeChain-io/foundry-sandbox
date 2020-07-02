@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{generate_random_name, Ipc, IpcRecv, IpcSend, RecvError, Terminate};
+use super::{generate_random_name, Ipc, RecvError, Terminate, TransportRecv, TransportSend};
 use crossbeam::channel::{bounded, Receiver, Select, SelectTimeoutError, Sender};
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 
 pub struct IntraSend(Sender<Vec<u8>>);
 
-impl IpcSend for IntraSend {
+impl TransportSend for IntraSend {
     fn send(&self, data: &[u8]) {
         self.0.send(data.to_vec()).unwrap();
     }
@@ -44,9 +44,7 @@ impl Terminate for Terminator {
     }
 }
 
-impl IpcRecv for IntraRecv {
-    type Terminator = Terminator;
-
+impl TransportRecv for IntraRecv {
     fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
         let mut selector = Select::new();
         let data_receiver_index = selector.recv(&self.data_receiver);
@@ -81,8 +79,8 @@ impl IpcRecv for IntraRecv {
         Ok(data)
     }
 
-    fn create_terminator(&self) -> Self::Terminator {
-        Terminator(self.terminator.clone())
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        Box::new(Terminator(self.terminator.clone()))
     }
 }
 
@@ -193,18 +191,17 @@ fn take_ends(key: &str) -> RegisteredIpcEnds {
     get_pool_raw().lock().remove(key).unwrap()
 }
 
-impl IpcSend for Intra {
+impl TransportSend for Intra {
     fn send(&self, data: &[u8]) {
         self.send.send(data)
     }
 }
 
-impl IpcRecv for Intra {
-    type Terminator = Terminator;
+impl TransportRecv for Intra {
     fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
         self.recv.recv(timeout)
     }
-    fn create_terminator(&self) -> Self::Terminator {
+    fn create_terminator(&self) -> Box<dyn Terminate> {
         self.recv.create_terminator()
     }
 }

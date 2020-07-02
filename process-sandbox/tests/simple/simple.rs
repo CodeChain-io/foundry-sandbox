@@ -17,7 +17,7 @@
 extern crate foundry_process_sandbox as fproc_sndbx;
 
 use fproc_sndbx::execution::executee;
-use fproc_sndbx::ipc::{IpcRecv, IpcSend};
+use fproc_sndbx::ipc::{TransportRecv, TransportSend};
 use std::time::Duration;
 
 type IpcScheme = fproc_sndbx::ipc::unix_socket::DomainSocket;

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{IpcRecv, IpcSend, RecvError, Terminate};
+use super::{RecvError, Terminate, TransportRecv, TransportSend};
 use crossbeam::channel::bounded;
 use parking_lot::Mutex;
 use std::thread;
@@ -26,7 +26,7 @@ pub trait Forward {
     fn forward(data: &[u8]) -> usize;
 }
 
-fn sender<S: IpcSend>(send: S, recv: Receiver) {
+fn sender<S: TransportSend>(send: S, recv: Receiver) {
     loop {
         let data = recv.recv().unwrap();
         // special exit flag
@@ -37,7 +37,7 @@ fn sender<S: IpcSend>(send: S, recv: Receiver) {
     }
 }
 
-fn receiver<F: Forward, R: IpcRecv>(recv: R, send: Vec<Sender>) {
+fn receiver<F: Forward, R: TransportRecv>(recv: R, send: Vec<Sender>) {
     loop {
         let data = match recv.recv(None) {
             Err(RecvError::TimeOut) => panic!(),
@@ -57,7 +57,7 @@ pub struct Multiplexer {
 }
 
 impl Multiplexer {
-    pub fn create<F: Forward, S: IpcSend + 'static, R: IpcRecv + 'static>(
+    pub fn create<F: Forward, S: TransportSend + 'static, R: TransportRecv + 'static>(
         ipc_send: S,
         ipc_recv: R,
         multiplex: usize,
@@ -66,7 +66,7 @@ impl Multiplexer {
         let (sender_send, sender_recv) = bounded(channel_capacity);
         let mut receiver_sends = Vec::<Sender>::new();
         let mut channel_ends = Vec::<(Sender, Receiver)>::new();
-        let termiantor: Option<Mutex<Box<dyn Terminate>>> = Some(Mutex::new(Box::new(ipc_recv.create_terminator())));
+        let termiantor: Option<Mutex<Box<dyn Terminate>>> = Some(Mutex::new(ipc_recv.create_terminator()));
 
         for _ in 0..multiplex {
             let (send, recv) = bounded(channel_capacity);
