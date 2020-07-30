@@ -136,7 +136,7 @@ impl<T: Ipc, E: Executor> Context<T, E> {
     /// it will call excutee::terminate() asap.
     pub fn terminate(self) {
         if let Some(ipc) = self.ipc.as_ref() {
-            ipc.send(b"#TERMINATE\0");
+            ipc.send(b"#TERMINATE\0").unwrap();
         }
     }
 }

@@ -172,6 +172,7 @@ fn poll_routine(
     }
 }
 
+#[derive(Debug)]
 struct SocketInternal {
     _send_thread: Option<thread::JoinHandle<()>>,
     _recv_thread: Option<thread::JoinHandle<()>>,
@@ -254,17 +255,20 @@ fn create(mut socket: UnixStream) -> (DomainSocketSend, DomainSocketRecv) {
     )
 }
 
+#[derive(Debug)]
 pub struct DomainSocketSend {
     queue: Sender<Vec<u8>>,
     _socket: Arc<SocketInternal>,
 }
 
 impl TransportSend for DomainSocketSend {
-    fn send(&self, data: &[u8]) {
+    fn send(&self, data: &[u8]) -> Result<(), SendError> {
         self.queue.send(data.to_vec()).unwrap();
+        Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct DomainSocketRecv {
     queue: Receiver<Vec<u8>>,
     socket: Arc<SocketInternal>,
@@ -304,13 +308,14 @@ impl Terminate for Terminator {
     }
 }
 
+#[derive(Debug)]
 pub struct DomainSocket {
     send: DomainSocketSend,
     recv: DomainSocketRecv,
 }
 
 impl TransportSend for DomainSocket {
-    fn send(&self, data: &[u8]) {
+    fn send(&self, data: &[u8]) -> Result<(), SendError> {
         self.send.send(data)
     }
 }
