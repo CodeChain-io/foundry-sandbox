@@ -34,13 +34,13 @@ fn simple_thread<I: Ipc + 'static>(args: Vec<String>) {
     let ctx = executee::start::<I>(args);
     let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"Hello?\0");
-    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0");
+    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0").unwrap();
     ctx.terminate();
 }
 
 fn simple_executor<I: Ipc + 'static, E: executor::Executor>(path: &str) {
     let ctx = executor::execute::<I, E>(path).unwrap();
-    ctx.ipc.as_ref().unwrap().send(b"Hello?\0");
+    ctx.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
     let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
     ctx.terminate();
@@ -98,8 +98,8 @@ fn execute_simple_intra_complicated() {
     let ctx1 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
     let ctx2 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
 
-    ctx2.ipc.as_ref().unwrap().send(b"Hello?\0");
-    ctx1.ipc.as_ref().unwrap().send(b"Hello?\0");
+    ctx2.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
+    ctx1.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
 
     let r = ctx1.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
@@ -125,7 +125,7 @@ fn execute_simple_intra_massive() {
             }
 
             for ctx in &ctxs {
-                ctx.ipc.as_ref().unwrap().send(b"Hello?\0");
+                ctx.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
             }
 
             for ctx in &ctxs {
@@ -163,7 +163,7 @@ fn terminator_socket() {
         barrier_.wait();
         assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
     });
-    d2.send(&[1, 2, 3]);
+    d2.send(&[1, 2, 3]).unwrap();
     barrier.wait();
     terminator.terminate();
     t.join().unwrap();
@@ -180,7 +180,7 @@ fn terminator_intra() {
         barrier_.wait();
         assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
     });
-    d2.send(&[1, 2, 3]);
+    d2.send(&[1, 2, 3]).unwrap();
     barrier.wait();
     terminator.terminate();
     t.join().unwrap();
@@ -204,7 +204,7 @@ fn socket_huge() {
     });
     for i in 0..n {
         let data = vec![(i % 256) as u8; packet_size];
-        d2.send(&data);
+        d2.send(&data).unwrap();
     }
     barrier.wait();
     terminator.terminate();
@@ -278,7 +278,7 @@ fn bidirection() {
     fn fun_send(n: usize, send: impl TransportSend) {
         for i in 0..n {
             let data = vec![(i % 256) as u8; 300000];
-            send.send(&data);
+            send.send(&data).unwrap();
             thread::sleep(std::time::Duration::from_millis(10))
         }
     }

@@ -33,7 +33,7 @@ fn sender<S: TransportSend>(send: S, recv: Receiver) {
         if data.is_empty() {
             break
         }
-        send.send(&data);
+        send.send(&data).unwrap();
     }
 }
 
@@ -41,6 +41,7 @@ fn receiver<F: Forward, R: TransportRecv>(recv: R, send: Vec<Sender>) {
     loop {
         let data = match recv.recv(None) {
             Err(RecvError::TimeOut) => panic!(),
+            Err(RecvError::Custom) => panic!(),
             Err(RecvError::Termination) => return,
             Ok(x) => x,
         };

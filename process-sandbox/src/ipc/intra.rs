@@ -14,20 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{generate_random_name, Ipc, RecvError, Terminate, TransportRecv, TransportSend};
+use super::*;
 use crossbeam::channel::{bounded, Receiver, Select, SelectTimeoutError, Sender};
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct IntraSend(Sender<Vec<u8>>);
 
 impl TransportSend for IntraSend {
-    fn send(&self, data: &[u8]) {
+    fn send(&self, data: &[u8]) -> Result<(), SendError> {
         self.0.send(data.to_vec()).unwrap();
+        Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct IntraRecv {
     data_receiver: Receiver<Vec<u8>>,
     terminator_receiver: Receiver<()>,
@@ -87,6 +90,7 @@ impl TransportRecv for IntraRecv {
 /// This acts like an IPC, but is actually an intra-process communication.
 /// It will be useful when you have to simulate IPC, but the two ends don't have
 /// to be actually in separated processes.
+#[derive(Debug)]
 pub struct Intra {
     send: IntraSend,
     recv: IntraRecv,
@@ -155,14 +159,14 @@ impl Ipc for Intra {
         if is_server {
             let x = intra.recv.recv(Some(timeout)).unwrap();
             assert_eq!(x, b"hey");
-            intra.send.send(b"hello");
+            intra.send.send(b"hello").unwrap();
             let x = intra.recv.recv(Some(timeout)).unwrap();
             assert_eq!(x, b"hi");
         } else {
-            intra.send.send(b"hey");
+            intra.send.send(b"hey").unwrap();
             let x = intra.recv.recv(None).unwrap();
             assert_eq!(x, b"hello");
-            intra.send.send(b"hi");
+            intra.send.send(b"hi").unwrap();
         }
 
         intra
@@ -192,7 +196,7 @@ fn take_ends(key: &str) -> RegisteredIpcEnds {
 }
 
 impl TransportSend for Intra {
-    fn send(&self, data: &[u8]) {
+    fn send(&self, data: &[u8]) -> Result<(), SendError> {
         self.send.send(data)
     }
 }
