@@ -24,7 +24,7 @@ pub struct Context<T: Ipc> {
 
 pub fn start<T: Ipc>(mut args: Vec<String>) -> Context<T> {
     let ipc = T::new(hex::decode(args.remove(1)).unwrap());
-    ipc.send(b"#INIT\0");
+    ipc.send(b"#INIT\0").unwrap();
     Context {
         ipc: Some(ipc),
     }

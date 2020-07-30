@@ -20,7 +20,7 @@ pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-pub use remote_trait_object::transport::{RecvError, Terminate, TransportRecv, TransportSend};
+pub use remote_trait_object::transport::{RecvError, SendError, Terminate, TransportRecv, TransportSend};
 
 pub trait Ipc: Sized + TransportSend + TransportRecv {
     /// Generate two configurations
