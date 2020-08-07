@@ -2,16 +2,16 @@
 // This file is part of CodeChain.
 //
 // This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as
+// it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// GNU Affero General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
+// You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
@@ -24,9 +24,17 @@ use std::collections::HashMap;
 pub struct IntraSend(Sender<Vec<u8>>);
 
 impl TransportSend for IntraSend {
-    fn send(&self, data: &[u8]) -> Result<(), SendError> {
-        self.0.send(data.to_vec()).unwrap();
-        Ok(())
+    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+        if let Some(timeout) = timeout {
+            // FIXME: Discern timeout error
+            self.0.send_timeout(data.to_vec(), timeout).map_err(|_| TransportError::Custom)
+        } else {
+            self.0.send(data.to_vec()).map_err(|_| TransportError::Custom)
+        }
+    }
+
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        unimplemented!()
     }
 }
 
@@ -48,14 +56,14 @@ impl Terminate for Terminator {
 }
 
 impl TransportRecv for IntraRecv {
-    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
+    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, TransportError> {
         let mut selector = Select::new();
         let data_receiver_index = selector.recv(&self.data_receiver);
         let terminator_index = selector.recv(&self.terminator_receiver);
 
         let selected_op = if let Some(timeout) = timeout {
             match selector.select_timeout(timeout) {
-                Err(SelectTimeoutError) => return Err(RecvError::TimeOut),
+                Err(SelectTimeoutError) => return Err(TransportError::TimeOut),
                 Ok(op) => op,
             }
         } else {
@@ -67,14 +75,14 @@ impl TransportRecv for IntraRecv {
                 Ok(data) => data,
                 Err(_) => {
                     debug!("Counterparty connection is closed in Intra");
-                    return Err(RecvError::Termination)
+                    return Err(TransportError::Custom)
                 }
             },
             i if i == terminator_index => {
                 let _ = selected_op
                     .recv(&self.terminator_receiver)
                     .expect("Terminator should be dropped after this thread");
-                return Err(RecvError::Termination)
+                return Err(TransportError::Termination)
             }
             _ => unreachable!(),
         };
@@ -159,14 +167,14 @@ impl Ipc for Intra {
         if is_server {
             let x = intra.recv.recv(Some(timeout)).unwrap();
             assert_eq!(x, b"hey");
-            intra.send.send(b"hello").unwrap();
+            intra.send.send(b"hello", Some(timeout)).unwrap();
             let x = intra.recv.recv(Some(timeout)).unwrap();
             assert_eq!(x, b"hi");
         } else {
-            intra.send.send(b"hey").unwrap();
+            intra.send.send(b"hey", Some(timeout)).unwrap();
             let x = intra.recv.recv(None).unwrap();
             assert_eq!(x, b"hello");
-            intra.send.send(b"hi").unwrap();
+            intra.send.send(b"hi", Some(timeout)).unwrap();
         }
 
         intra
@@ -196,13 +204,17 @@ fn take_ends(key: &str) -> RegisteredIpcEnds {
 }
 
 impl TransportSend for Intra {
-    fn send(&self, data: &[u8]) -> Result<(), SendError> {
-        self.send.send(data)
+    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+        self.send.send(data, timeout)
+    }
+
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        self.send.create_terminator()
     }
 }
 
 impl TransportRecv for Intra {
-    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
+    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, TransportError> {
         self.recv.recv(timeout)
     }
     fn create_terminator(&self) -> Box<dyn Terminate> {

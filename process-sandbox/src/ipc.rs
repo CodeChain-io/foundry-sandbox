@@ -20,7 +20,7 @@ pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-pub use remote_trait_object::transport::{RecvError, SendError, Terminate, TransportRecv, TransportSend};
+pub use remote_trait_object::transport::{Terminate, TransportError, TransportRecv, TransportSend};
 use sha2::Digest;
 
 pub trait Ipc: Sized + TransportSend + TransportRecv {

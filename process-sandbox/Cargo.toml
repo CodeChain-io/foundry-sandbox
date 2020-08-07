@@ -13,7 +13,7 @@ log = "0.4.8"
 mio = {version = "0.7.0", features = ["uds", "os-poll"]}
 once_cell = "1.3.1"
 parking_lot = "0.11.0"
-remote-trait-object = "=0.3.0"
+remote-trait-object = "0.4.0"
 serde_cbor = "0.11.1"
 
 [dev-dependencies]

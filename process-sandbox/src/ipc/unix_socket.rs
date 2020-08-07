@@ -262,9 +262,17 @@ pub struct DomainSocketSend {
 }
 
 impl TransportSend for DomainSocketSend {
-    fn send(&self, data: &[u8]) -> Result<(), SendError> {
-        self.queue.send(data.to_vec()).unwrap();
-        Ok(())
+    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+        if let Some(timeout) = timeout {
+            // FIXME: Discern timeout error
+            self.queue.send_timeout(data.to_vec(), timeout).map_err(|_| TransportError::Custom)
+        } else {
+            self.queue.send(data.to_vec()).map_err(|_| TransportError::Custom)
+        }
+    }
+
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        unimplemented!()
     }
 }
 
@@ -276,14 +284,14 @@ pub struct DomainSocketRecv {
 
 impl TransportRecv for DomainSocketRecv {
     /// Note that DomainSocketRecv is !Sync, so this is guaranteed to be mutual exclusive.
-    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
+    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, TransportError> {
         let x = if let Some(t) = timeout {
-            self.queue.recv_timeout(t).map_err(|_| RecvError::TimeOut)?
+            self.queue.recv_timeout(t).map_err(|_| TransportError::TimeOut)?
         } else {
             self.queue.recv().unwrap()
         };
         if x.is_empty() {
-            return Err(RecvError::Termination)
+            return Err(TransportError::Termination)
         }
         Ok(x)
     }
@@ -315,13 +323,17 @@ pub struct DomainSocket {
 }
 
 impl TransportSend for DomainSocket {
-    fn send(&self, data: &[u8]) -> Result<(), SendError> {
-        self.send.send(data)
+    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+        self.send.send(data, timeout)
+    }
+
+    fn create_terminator(&self) -> Box<dyn Terminate> {
+        self.send.create_terminator()
     }
 }
 
 impl TransportRecv for DomainSocket {
-    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, RecvError> {
+    fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, TransportError> {
         self.recv.recv(timeout)
     }
 
