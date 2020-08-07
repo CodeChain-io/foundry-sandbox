@@ -58,7 +58,7 @@ impl Executor for Executable {
 
 /// This is for the intra-process tasks. You can register a runnable function,
 /// and it will be executed later as an instance of 'process' (which is actually not).
-pub type ThreadAsProcesss = Arc<dyn Fn(Vec<String>) -> () + Send + Sync>;
+pub type ThreadAsProcesss = Arc<dyn Fn(Vec<String>) + Send + Sync>;
 
 static POOL: OnceCell<RwLock<HashMap<String, ThreadAsProcesss>>> = OnceCell::new();
 
