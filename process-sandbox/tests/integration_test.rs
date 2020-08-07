@@ -34,13 +34,13 @@ fn simple_thread<I: Ipc + 'static>(args: Vec<String>) {
     let ctx = executee::start::<I>(args);
     let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"Hello?\0");
-    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0").unwrap();
+    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0", None).unwrap();
     ctx.terminate();
 }
 
 fn simple_executor<I: Ipc + 'static, E: executor::Executor>(path: &str) {
     let ctx = executor::execute::<I, E>(path).unwrap();
-    ctx.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
+    ctx.ipc.as_ref().unwrap().send(b"Hello?\0", None).unwrap();
     let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
     ctx.terminate();
@@ -98,8 +98,8 @@ fn execute_simple_intra_complicated() {
     let ctx1 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
     let ctx2 = executor::execute::<Intra, executor::PlainThread>(&name).unwrap();
 
-    ctx2.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
-    ctx1.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
+    ctx2.ipc.as_ref().unwrap().send(b"Hello?\0", None).unwrap();
+    ctx1.ipc.as_ref().unwrap().send(b"Hello?\0", None).unwrap();
 
     let r = ctx1.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"I'm here!\0");
@@ -125,7 +125,7 @@ fn execute_simple_intra_massive() {
             }
 
             for ctx in &ctxs {
-                ctx.ipc.as_ref().unwrap().send(b"Hello?\0").unwrap();
+                ctx.ipc.as_ref().unwrap().send(b"Hello?\0", None).unwrap();
             }
 
             for ctx in &ctxs {
@@ -155,15 +155,15 @@ fn setup_ipc<I: Ipc + 'static>() -> (I, I) {
 #[test]
 fn terminator_socket() {
     let (d1, d2) = setup_ipc::<IpcScheme>();
-    let terminator = d1.create_terminator();
+    let terminator = TransportRecv::create_terminator(&d1);
     let barrier = Arc::new(Barrier::new(2));
     let barrier_ = barrier.clone();
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination)
     });
-    d2.send(&[1, 2, 3]).unwrap();
+    d2.send(&[1, 2, 3], None).unwrap();
     barrier.wait();
     terminator.terminate();
     t.join().unwrap();
@@ -172,15 +172,15 @@ fn terminator_socket() {
 #[test]
 fn terminator_intra() {
     let (d1, d2) = setup_ipc::<Intra>();
-    let terminator = d1.create_terminator();
+    let terminator = TransportRecv::create_terminator(&d1);
     let barrier = Arc::new(Barrier::new(2));
     let barrier_ = barrier.clone();
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination)
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination)
     });
-    d2.send(&[1, 2, 3]).unwrap();
+    d2.send(&[1, 2, 3], None).unwrap();
     barrier.wait();
     terminator.terminate();
     t.join().unwrap();
@@ -191,7 +191,7 @@ fn socket_huge() {
     let n = 500;
     let packet_size = 300000;
     let (d1, d2) = setup_ipc::<IpcScheme>();
-    let terminator = d1.create_terminator();
+    let terminator = TransportRecv::create_terminator(&d1);
     let barrier = Arc::new(Barrier::new(2));
     let barrier_ = barrier.clone();
     let t = thread::spawn(move || {
@@ -200,11 +200,11 @@ fn socket_huge() {
             assert!(r.iter().all(|&x| x == (i % 256) as u8));
         }
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::RecvError::Termination);
+        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination);
     });
     for i in 0..n {
         let data = vec![(i % 256) as u8; packet_size];
-        d2.send(&data).unwrap();
+        d2.send(&data, None).unwrap();
     }
     barrier.wait();
     terminator.terminate();
@@ -278,7 +278,7 @@ fn bidirection() {
     fn fun_send(n: usize, send: impl TransportSend) {
         for i in 0..n {
             let data = vec![(i % 256) as u8; 300000];
-            send.send(&data).unwrap();
+            send.send(&data, None).unwrap();
             thread::sleep(std::time::Duration::from_millis(10))
         }
     }

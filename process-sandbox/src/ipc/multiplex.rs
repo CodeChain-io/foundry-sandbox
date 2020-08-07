@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{RecvError, Terminate, TransportRecv, TransportSend};
+use super::{Terminate, TransportError, TransportRecv, TransportSend};
 use crossbeam::channel::bounded;
 use parking_lot::Mutex;
 use std::thread;
@@ -33,16 +33,16 @@ fn sender<S: TransportSend>(send: S, recv: Receiver) {
         if data.is_empty() {
             break
         }
-        send.send(&data).unwrap();
+        send.send(&data, None).unwrap();
     }
 }
 
 fn receiver<F: Forward, R: TransportRecv>(recv: R, send: Vec<Sender>) {
     loop {
         let data = match recv.recv(None) {
-            Err(RecvError::TimeOut) => panic!(),
-            Err(RecvError::Custom) => panic!(),
-            Err(RecvError::Termination) => return,
+            Err(TransportError::TimeOut) => panic!(),
+            Err(TransportError::Custom) => panic!(),
+            Err(TransportError::Termination) => return,
             Ok(x) => x,
         };
         send[F::forward(&data)].send(data).unwrap();
