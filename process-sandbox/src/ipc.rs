@@ -21,6 +21,7 @@ pub mod unix_socket;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 pub use remote_trait_object::transport::{Terminate, TransportError, TransportRecv, TransportSend};
+use sha2::Digest;
 
 pub trait Ipc: Sized + TransportSend + TransportRecv {
     /// Generate two configurations
@@ -51,6 +52,8 @@ pub fn generate_random_name() -> String {
     let mono = *mono;
     let pid = std::process::id();
     let time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
-    let hash = ccrypto::blake256(format!("{:?}{}{}", time, pid, mono));
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(format!("{:?}{}{}", time, pid, mono));
+    let hash = hasher.finalize();
     format!("{:?}", hash)[0..16].to_string()
 }
