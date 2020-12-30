@@ -55,5 +55,5 @@ pub fn generate_random_name() -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}{}{}", time, pid, mono));
     let hash = hasher.finalize();
-    format!("{}", hex::encode(hash.as_slice()))[0..32].to_string()
+    hex::encode(hash.as_slice())[0..32].to_string()
 }
