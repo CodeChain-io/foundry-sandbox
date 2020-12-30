@@ -25,7 +25,7 @@ use fproc_sndbx::ipc::{TransportRecv, TransportSend};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
-type IpcScheme = fproc_sndbx::ipc::unix_socket::DomainSocket;
+type IpcScheme = fproc_sndbx::ipc::stream_socket::Tcp;
 
 // CI server is really slow for this. Usually 10 is ok.
 const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(10000);
