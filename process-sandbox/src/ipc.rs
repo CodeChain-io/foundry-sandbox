@@ -16,6 +16,7 @@
 
 pub mod intra;
 pub mod multiplex;
+pub mod udp;
 pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
