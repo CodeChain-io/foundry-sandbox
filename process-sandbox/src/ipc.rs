@@ -16,8 +16,8 @@
 
 pub mod intra;
 pub mod multiplex;
+pub mod stream_socket;
 pub mod udp;
-pub mod unix_socket;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;

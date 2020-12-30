@@ -20,7 +20,7 @@ use fproc_sndbx::execution::executee;
 use fproc_sndbx::ipc::{TransportRecv, TransportSend};
 use std::time::Duration;
 
-type IpcScheme = fproc_sndbx::ipc::unix_socket::DomainSocket;
+type IpcScheme = fproc_sndbx::ipc::stream_socket::Tcp;
 
 #[cfg(all(unix, target_arch = "x86_64"))]
 fn main() -> Result<(), String> {
