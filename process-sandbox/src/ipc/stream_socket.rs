@@ -13,13 +13,20 @@ use std::thread;
 
 const POLL_TOKEN: Token = Token(0);
 
-pub trait Address: serde::Serialize + serde::de::DeserializeOwned + Clone + std::fmt::Debug {
+pub trait Address:
+    serde::Serialize + serde::de::DeserializeOwned + Clone + std::fmt::Debug
+{
     fn generate() -> Self;
 }
 
 impl Address for PathBuf {
     fn generate() -> Self {
-        format!("{}/{}", std::env::temp_dir().to_str().unwrap(), generate_random_name()).into()
+        format!(
+            "{}/{}",
+            std::env::temp_dir().to_str().unwrap(),
+            generate_random_name()
+        )
+        .into()
     }
 }
 
@@ -29,7 +36,7 @@ impl Address for SocketAddr {
         for _ in 0..10000 {
             let p = rng.gen_range(10000, 50000);
             if std::net::UdpSocket::bind(format!("127.0.0.1:{}", p)).is_ok() {
-                return format!("127.0.0.1:{}", p).parse().unwrap()
+                return format!("127.0.0.1:{}", p).parse().unwrap();
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
@@ -59,7 +66,8 @@ impl Stream for UnixStream {
     type Address = PathBuf;
     fn connect(addr: Self::Address) -> std::io::Result<Self>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         UnixStream::connect(addr)
     }
 
@@ -72,21 +80,26 @@ impl Listener for UnixListener {
     type Stream = UnixStream;
     fn bind(addr: <Self::Stream as Stream>::Address) -> std::io::Result<Self>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         let mut x = Self::bind(addr)?;
 
         // wait for initial preparation for accept()
         let mut poll = Poll::new().unwrap();
         let mut events = Events::with_capacity(128);
-        poll.registry().register(&mut x, Token(0), Interest::READABLE).unwrap();
-        poll.poll(&mut events, Some(std::time::Duration::from_millis(100))).unwrap();
+        poll.registry()
+            .register(&mut x, Token(0), Interest::READABLE)
+            .unwrap();
+        poll.poll(&mut events, Some(std::time::Duration::from_millis(100)))
+            .unwrap();
 
         Ok(x)
     }
 
     fn accept(&self) -> std::io::Result<Self::Stream>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         self.accept().map(|(x, _)| x)
     }
 }
@@ -95,7 +108,8 @@ impl Stream for TcpStream {
     type Address = SocketAddr;
     fn connect(addr: Self::Address) -> std::io::Result<Self>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         TcpStream::connect(addr)
     }
 
@@ -108,13 +122,15 @@ impl Listener for TcpListener {
     type Stream = TcpStream;
     fn bind(addr: <Self::Stream as Stream>::Address) -> std::io::Result<Self>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         Self::bind(addr)
     }
 
     fn accept(&self) -> std::io::Result<Self::Stream>
     where
-        Self: Sized, {
+        Self: Sized,
+    {
         self.accept().map(|(x, _)| x)
     }
 }
@@ -143,10 +159,17 @@ fn send_routine(
                 Ok(x) => sent += x,
                 Err(e) => {
                     match e.kind() {
-                        std::io::ErrorKind::UnexpectedEof => return Err(Error::ExpectedTermination),
+                        std::io::ErrorKind::UnexpectedEof => {
+                            return Err(Error::ExpectedTermination)
+                        }
                         std::io::ErrorKind::WouldBlock => write_signal // spurious wakeup
                             .recv()
-                            .map_err(|x| Error::UnexpectedError(format!("Write signal doesn't arrive: {}", x)))?
+                            .map_err(|x| {
+                                Error::UnexpectedError(format!(
+                                    "Write signal doesn't arrive: {}",
+                                    x
+                                ))
+                            })?
                             .map_err(|_| Error::ExpectedTermination)?,
                         _ => panic!(e),
                     }
@@ -163,7 +186,7 @@ fn send_routine(
             Err(_) => return Ok(()),
         };
         if x.is_empty() {
-            return Ok(())
+            return Ok(());
         }
         let size: [u8; 8] = x.len().to_be_bytes();
         match send_helper(&size) {
@@ -199,7 +222,7 @@ fn recv_routine(
             match r {
                 Ok(x) => {
                     if x == 0 {
-                        return Err(Error::ExpectedTermination)
+                        return Err(Error::ExpectedTermination);
                     } else {
                         read += x
                     }
@@ -210,7 +233,9 @@ fn recv_routine(
                     }
                     std::io::ErrorKind::WouldBlock => read_signal
                         .recv()
-                        .map_err(|x| Error::UnexpectedError(format!("Read signal doesn't arrive: {}", x)))?
+                        .map_err(|x| {
+                            Error::UnexpectedError(format!("Read signal doesn't arrive: {}", x))
+                        })?
                         .map_err(|_| Error::ExpectedTermination)?, // spurious wakeup
                     e => panic!(e),
                 },
@@ -236,7 +261,7 @@ fn recv_routine(
             Err(Error::UnexpectedError(s)) => return Err(s),
         }
         if queue.send(result).is_err() {
-            return Ok(())
+            return Ok(());
         }
     }
 }
@@ -256,7 +281,11 @@ fn poll_routine(
             }
         }
         for event in events.iter() {
-            assert_eq!(events.iter().next().unwrap().token(), POLL_TOKEN, "Invalid socket event");
+            assert_eq!(
+                events.iter().next().unwrap().token(),
+                POLL_TOKEN,
+                "Invalid socket event"
+            );
 
             // If it is going to exit, it's ok to fail to send signal (some spurious signals come)
             let exit = if exit_flag.load(Ordering::Relaxed) {
@@ -270,7 +299,7 @@ fn poll_routine(
                 // It might fail depending on the scheduling, but is not a problem.
                 let _ = write_signal.send(Err(()));
                 let _ = recv_signal.send(Err(()));
-                return
+                return;
             }
             if event.is_writable() {
                 // ditto.
@@ -306,7 +335,13 @@ impl<S: Stream> Drop for SocketInternal<S> {
 
 fn create<S: Stream + 'static>(mut socket: S) -> (SocketStreamSend<S>, SocketStreamRecv<S>) {
     let poll = Poll::new().unwrap();
-    poll.registry().register(&mut socket, POLL_TOKEN, Interest::WRITABLE.add(Interest::READABLE)).unwrap();
+    poll.registry()
+        .register(
+            &mut socket,
+            POLL_TOKEN,
+            Interest::WRITABLE.add(Interest::READABLE),
+        )
+        .unwrap();
 
     let socket = Arc::new(Mutex::new(socket));
     // TODO: Choose an appropriate capacities for these channels
@@ -373,12 +408,20 @@ pub struct SocketStreamSend<S: Stream> {
 }
 
 impl<S: Stream> TransportSend for SocketStreamSend<S> {
-    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+    fn send(
+        &self,
+        data: &[u8],
+        timeout: Option<std::time::Duration>,
+    ) -> Result<(), TransportError> {
         if let Some(timeout) = timeout {
             // FIXME: Discern timeout error
-            self.queue.send_timeout(data.to_vec(), timeout).map_err(|_| TransportError::Custom)
+            self.queue
+                .send_timeout(data.to_vec(), timeout)
+                .map_err(|_| TransportError::Custom)
         } else {
-            self.queue.send(data.to_vec()).map_err(|_| TransportError::Custom)
+            self.queue
+                .send(data.to_vec())
+                .map_err(|_| TransportError::Custom)
         }
     }
 
@@ -397,12 +440,14 @@ impl<S: Stream + 'static> TransportRecv for SocketStreamRecv<S> {
     /// Note that SocketStreamRecv is !Sync, so this is guaranteed to be mutual exclusive.
     fn recv(&self, timeout: Option<std::time::Duration>) -> Result<Vec<u8>, TransportError> {
         let x = if let Some(t) = timeout {
-            self.queue.recv_timeout(t).map_err(|_| TransportError::TimeOut)?
+            self.queue
+                .recv_timeout(t)
+                .map_err(|_| TransportError::TimeOut)?
         } else {
             self.queue.recv().unwrap()
         };
         if x.is_empty() {
-            return Err(TransportError::Termination)
+            return Err(TransportError::Termination);
         }
         Ok(x)
     }
@@ -434,7 +479,11 @@ pub struct SocketStream<L: Listener> {
 }
 
 impl<L: Listener> TransportSend for SocketStream<L> {
-    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+    fn send(
+        &self,
+        data: &[u8],
+        timeout: Option<std::time::Duration>,
+    ) -> Result<(), TransportError> {
         self.send.send(data, timeout)
     }
 
@@ -456,21 +505,25 @@ impl<L: Listener + 'static> TransportRecv for SocketStream<L> {
 impl<L: Listener + 'static> Ipc for SocketStream<L> {
     fn arguments_for_both_ends() -> (Vec<u8>, Vec<u8>) {
         let address = <<L::Stream as Stream>::Address as Address>::generate();
-        (serde_cbor::to_vec(&(true, &address)).unwrap(), serde_cbor::to_vec(&(false, &address)).unwrap())
+        (
+            serde_cbor::to_vec(&(true, &address)).unwrap(),
+            serde_cbor::to_vec(&(false, &address)).unwrap(),
+        )
     }
 
     type SendHalf = SocketStreamSend<L::Stream>;
     type RecvHalf = SocketStreamRecv<L::Stream>;
 
     fn new(data: Vec<u8>) -> Self {
-        let (am_i_server, address): (bool, <L::Stream as Stream>::Address) = serde_cbor::from_slice(&data).unwrap();
+        let (am_i_server, address): (bool, <L::Stream as Stream>::Address) =
+            serde_cbor::from_slice(&data).unwrap();
         // We use spinning for the connection establishment
         let stream = if am_i_server {
             let listener = L::bind(address).unwrap();
             (|| {
                 for _ in 0..1000 {
                     if let Ok(stream) = listener.accept() {
-                        return stream
+                        return stream;
                     }
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
@@ -482,7 +535,7 @@ impl<L: Listener + 'static> Ipc for SocketStream<L> {
             (|| {
                 for _ in 0..1000 {
                     if let Ok(stream) = L::Stream::connect(address.clone()) {
-                        return stream
+                        return stream;
                     }
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
@@ -492,10 +545,7 @@ impl<L: Listener + 'static> Ipc for SocketStream<L> {
 
         let (send, recv) = create(stream);
 
-        SocketStream {
-            send,
-            recv,
-        }
+        SocketStream { send, recv }
     }
 
     fn split(self) -> (Self::SendHalf, Self::RecvHalf) {

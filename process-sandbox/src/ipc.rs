@@ -52,7 +52,9 @@ pub fn generate_random_name() -> String {
     *mono += 1;
     let mono = *mono;
     let pid = std::process::id();
-    let time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
+    let time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}{}{}", time, pid, mono));
     let hash = hasher.finalize();

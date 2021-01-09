@@ -24,12 +24,20 @@ use std::collections::HashMap;
 pub struct IntraSend(Sender<Vec<u8>>);
 
 impl TransportSend for IntraSend {
-    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+    fn send(
+        &self,
+        data: &[u8],
+        timeout: Option<std::time::Duration>,
+    ) -> Result<(), TransportError> {
         if let Some(timeout) = timeout {
             // FIXME: Discern timeout error
-            self.0.send_timeout(data.to_vec(), timeout).map_err(|_| TransportError::Custom)
+            self.0
+                .send_timeout(data.to_vec(), timeout)
+                .map_err(|_| TransportError::Custom)
         } else {
-            self.0.send(data.to_vec()).map_err(|_| TransportError::Custom)
+            self.0
+                .send(data.to_vec())
+                .map_err(|_| TransportError::Custom)
         }
     }
 
@@ -75,14 +83,14 @@ impl TransportRecv for IntraRecv {
                 Ok(data) => data,
                 Err(_) => {
                     debug!("Counterparty connection is closed in Intra");
-                    return Err(TransportError::Custom)
+                    return Err(TransportError::Custom);
                 }
             },
             i if i == terminator_index => {
                 let _ = selected_op
                     .recv(&self.terminator_receiver)
                     .expect("Terminator should be dropped after this thread");
-                return Err(TransportError::Termination)
+                return Err(TransportError::Termination);
             }
             _ => unreachable!(),
         };
@@ -143,24 +151,30 @@ impl Ipc for Intra {
 
         let (intra_a, intra_b) = Self::new_both_ends();
 
-        add_ends(key_server.clone(), RegisteredIpcEnds {
-            is_server: true,
-            intra: intra_a,
-        });
-        add_ends(key_client.clone(), RegisteredIpcEnds {
-            is_server: false,
-            intra: intra_b,
-        });
+        add_ends(
+            key_server.clone(),
+            RegisteredIpcEnds {
+                is_server: true,
+                intra: intra_a,
+            },
+        );
+        add_ends(
+            key_client.clone(),
+            RegisteredIpcEnds {
+                is_server: false,
+                intra: intra_b,
+            },
+        );
 
-        (serde_cbor::to_vec(&key_server).unwrap(), serde_cbor::to_vec(&key_client).unwrap())
+        (
+            serde_cbor::to_vec(&key_server).unwrap(),
+            serde_cbor::to_vec(&key_client).unwrap(),
+        )
     }
 
     fn new(data: Vec<u8>) -> Self {
         let key: String = serde_cbor::from_slice(&data).unwrap();
-        let RegisteredIpcEnds {
-            is_server,
-            intra,
-        } = take_ends(&key);
+        let RegisteredIpcEnds { is_server, intra } = take_ends(&key);
 
         // Handshake
         let timeout = std::time::Duration::from_millis(1000);
@@ -204,7 +218,11 @@ fn take_ends(key: &str) -> RegisteredIpcEnds {
 }
 
 impl TransportSend for Intra {
-    fn send(&self, data: &[u8], timeout: Option<std::time::Duration>) -> Result<(), TransportError> {
+    fn send(
+        &self,
+        data: &[u8],
+        timeout: Option<std::time::Duration>,
+    ) -> Result<(), TransportError> {
         self.send.send(data, timeout)
     }
 

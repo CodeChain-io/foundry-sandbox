@@ -31,7 +31,7 @@ fn sender<S: TransportSend>(send: S, recv: Receiver) {
         let data = recv.recv().unwrap();
         // special exit flag
         if data.is_empty() {
-            break
+            break;
         }
         send.send(&data, None).unwrap();
     }
@@ -67,7 +67,8 @@ impl Multiplexer {
         let (sender_send, sender_recv) = bounded(channel_capacity);
         let mut receiver_sends = Vec::<Sender>::new();
         let mut channel_ends = Vec::<(Sender, Receiver)>::new();
-        let termiantor: Option<Mutex<Box<dyn Terminate>>> = Some(Mutex::new(ipc_recv.create_terminator()));
+        let termiantor: Option<Mutex<Box<dyn Terminate>>> =
+            Some(Mutex::new(ipc_recv.create_terminator()));
 
         for _ in 0..multiplex {
             let (send, recv) = bounded(channel_capacity);
@@ -89,12 +90,15 @@ impl Multiplexer {
             })
             .unwrap();
 
-        (channel_ends, Multiplexer {
-            sender_thread: Some(sender_thread),
-            receiver_thread: Some(receiver_thread),
-            termiantor,
-            sender_send,
-        })
+        (
+            channel_ends,
+            Multiplexer {
+                sender_thread: Some(sender_thread),
+                receiver_thread: Some(receiver_thread),
+                termiantor,
+                sender_send,
+            },
+        )
     }
 }
 

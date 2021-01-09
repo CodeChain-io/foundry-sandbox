@@ -49,7 +49,7 @@ impl Executor for Executable {
         for _ in 0..10 {
             std::thread::sleep(std::time::Duration::from_millis(100));
             if self.child.try_wait().unwrap().is_some() {
-                return // successful
+                return; // successful
             }
         }
         panic!("Module hasn't terminated itself. Protocol Error")
@@ -63,11 +63,19 @@ pub type ThreadAsProcesss = Arc<dyn Fn(Vec<String>) + Send + Sync>;
 static POOL: OnceCell<RwLock<HashMap<String, ThreadAsProcesss>>> = OnceCell::new();
 
 fn get_function_pool(key: &str) -> ThreadAsProcesss {
-    POOL.get_or_init(Default::default).read().get(key).unwrap().clone()
+    POOL.get_or_init(Default::default)
+        .read()
+        .get(key)
+        .unwrap()
+        .clone()
 }
 
 pub fn add_function_pool(key: String, f: ThreadAsProcesss) {
-    assert!(POOL.get_or_init(Default::default).write().insert(key, f).is_none());
+    assert!(POOL
+        .get_or_init(Default::default)
+        .write()
+        .insert(key, f)
+        .is_none());
 }
 
 pub struct PlainThread {
@@ -115,8 +123,10 @@ pub struct Context<T: Ipc, E: Executor> {
 /// id must be unique for each instance.
 pub fn execute<T: Ipc + 'static, E: Executor>(path: &str) -> Result<Context<T, E>, String> {
     let (config_server, config_client) = T::arguments_for_both_ends();
-    let ipc =
-        std::thread::Builder::new().name("Ipc connector".to_string()).spawn(move || T::new(config_server)).unwrap();
+    let ipc = std::thread::Builder::new()
+        .name("Ipc connector".to_string())
+        .spawn(move || T::new(config_server))
+        .unwrap();
     let config_client = hex::encode(&config_client);
     let args: Vec<&str> = vec![&config_client];
     let child = ExecutorDropper {

@@ -25,16 +25,18 @@ pub struct Context<T: Ipc> {
 pub fn start<T: Ipc>(mut args: Vec<String>) -> Context<T> {
     let ipc = T::new(hex::decode(args.remove(1)).unwrap());
     ipc.send(b"#INIT\0", None).unwrap();
-    Context {
-        ipc: Some(ipc),
-    }
+    Context { ipc: Some(ipc) }
 }
 
 impl<T: Ipc> Context<T> {
     /// Tell the executor that I will exit asap after this byebye handshake.
     pub fn terminate(self) {
         if let Some(ipc) = self.ipc {
-            assert_eq!(ipc.recv(Some(std::time::Duration::from_millis(500))).unwrap(), b"#TERMINATE\0");
+            assert_eq!(
+                ipc.recv(Some(std::time::Duration::from_millis(500)))
+                    .unwrap(),
+                b"#TERMINATE\0"
+            );
         }
     }
 }

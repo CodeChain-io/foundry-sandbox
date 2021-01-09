@@ -26,9 +26,18 @@ type IpcScheme = fproc_sndbx::ipc::stream_socket::Tcp;
 fn main() -> Result<(), String> {
     let args = std::env::args().collect();
     let ctx = executee::start::<IpcScheme>(args);
-    let r = ctx.ipc.as_ref().unwrap().recv(Some(Duration::from_millis(100))).unwrap();
+    let r = ctx
+        .ipc
+        .as_ref()
+        .unwrap()
+        .recv(Some(Duration::from_millis(100)))
+        .unwrap();
     assert_eq!(r, b"Hello?\0");
-    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0", None).unwrap();
+    ctx.ipc
+        .as_ref()
+        .unwrap()
+        .send(b"I'm here!\0", None)
+        .unwrap();
     ctx.terminate();
     Ok(())
 }

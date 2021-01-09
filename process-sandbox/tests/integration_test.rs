@@ -34,7 +34,11 @@ fn simple_thread<I: Ipc + 'static>(args: Vec<String>) {
     let ctx = executee::start::<I>(args);
     let r = ctx.ipc.as_ref().unwrap().recv(Some(TIMEOUT)).unwrap();
     assert_eq!(r, b"Hello?\0");
-    ctx.ipc.as_ref().unwrap().send(b"I'm here!\0", None).unwrap();
+    ctx.ipc
+        .as_ref()
+        .unwrap()
+        .send(b"I'm here!\0", None)
+        .unwrap();
     ctx.terminate();
 }
 
@@ -72,9 +76,15 @@ fn execute_simple_multiple() {
     let name_source = fproc_sndbx::ipc::generate_random_name();
     executor::add_function_pool(name_source.clone(), Arc::new(simple_thread::<Intra>));
 
-    let t1 = thread::spawn(|| simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs"));
-    let t2 = thread::spawn(|| simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs"));
-    let t3 = thread::spawn(|| simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs"));
+    let t1 = thread::spawn(|| {
+        simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs")
+    });
+    let t2 = thread::spawn(|| {
+        simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs")
+    });
+    let t3 = thread::spawn(|| {
+        simple_executor::<IpcScheme, executor::Executable>("./../target/debug/test_simple_rs")
+    });
 
     let name = name_source.clone();
     let t4 = thread::spawn(move || simple_executor::<Intra, executor::PlainThread>(&name));
@@ -161,7 +171,10 @@ fn terminator_socket() {
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination)
+        assert_eq!(
+            d1.recv(None).unwrap_err(),
+            fproc_sndbx::ipc::TransportError::Termination
+        )
     });
     d2.send(&[1, 2, 3], None).unwrap();
     barrier.wait();
@@ -178,7 +191,10 @@ fn terminator_intra() {
     let t = thread::spawn(move || {
         assert_eq!(d1.recv(None).unwrap(), vec![1, 2, 3]);
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination)
+        assert_eq!(
+            d1.recv(None).unwrap_err(),
+            fproc_sndbx::ipc::TransportError::Termination
+        )
     });
     d2.send(&[1, 2, 3], None).unwrap();
     barrier.wait();
@@ -200,7 +216,10 @@ fn socket_huge() {
             assert!(r.iter().all(|&x| x == (i % 256) as u8));
         }
         barrier_.wait();
-        assert_eq!(d1.recv(None).unwrap_err(), fproc_sndbx::ipc::TransportError::Termination);
+        assert_eq!(
+            d1.recv(None).unwrap_err(),
+            fproc_sndbx::ipc::TransportError::Termination
+        );
     });
     for i in 0..n {
         let data = vec![(i % 256) as u8; packet_size];
