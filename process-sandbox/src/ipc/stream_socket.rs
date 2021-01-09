@@ -553,6 +553,31 @@ impl<L: Listener + 'static> Ipc for SocketStream<L> {
     }
 }
 
+impl<L: Listener + 'static> SocketStream<L> {
+    pub fn new_server(&self, addr: <L::Stream as Stream>::Address) -> Self {
+        let listener = L::bind(addr).unwrap();
+        for _ in 0..1000 {
+            if let Ok(stream) = listener.accept() {
+                let (send, recv) = create(stream);
+                return SocketStream { send, recv };
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        panic!("Failed to establish socket within a timeout")
+    }
+
+    pub fn new_client(&self, addr: <L::Stream as Stream>::Address) -> Self {
+        for _ in 0..1000 {
+            if let Ok(stream) = L::Stream::connect(addr.clone()) {
+                let (send, recv) = create(stream);
+                return SocketStream { send, recv };
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        panic!("Failed to establish socket within a timeout")
+    }
+}
+
 pub type UnixDomain = SocketStream<UnixListener>;
 pub type UnixDomainSend = SocketStreamSend<UnixListener>;
 pub type UnixDomainRecv = SocketStreamRecv<UnixListener>;
